@@ -46,8 +46,9 @@ A MySQL Connection Manager for Go's [database/sql](https://golang.org/pkg/databa
 ---------------------------------------
 
 ## Installation
-Simple install the package to your [$GOPATH](https://github.com/golang/go/wiki/GOPATH "GOPATH") with the [go tool](https://golang.org/cmd/go/ "go command") from shell:
-```bash
+Simply install the package to your [$GOPATH](https://github.com/golang/go/wiki/GOPATH "GOPATH") with the [go tool](https://golang.org/cmd/go/ "go command") from shell:
+
+```sh
 $ go get -u github.com/skeptycal/mysql
 ```
 Make sure [Git is installed](https://git-scm.com/downloads) on your machine and in your system's `PATH`.
