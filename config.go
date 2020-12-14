@@ -31,6 +31,8 @@ const (
 
 	// this is the 'driver name' used by helper functions that smooth out connections
 	mySqlDriverName = "mysql"
+
+	protocol = "tcp"
 )
 
 // NewDBConfig returns a new MySQL database connection configuration object.
@@ -92,8 +94,13 @@ func (db mySQL) Open(dbname string) (*sql.DB, error) {
 // DSN returns the entire DSN authentication string including a database name.
 // Using "" for the database name will return a generic connection to the server
 // that allows listing and choosing different database names.
+// DSN format:
+//      [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]
+// A DSN in its fullest form:
+//      username:password@protocol(address)/dbname?param=value
 func (db mySQL) DSN(database string) string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s/%s)", db.username, db.password, db.host, db.port, database)
+	"%s:%s@%s(%s:%s)/%s"
+	return fmt.Sprintf("%s:%s@tcp(%s:%s/%s)", db.username, db.password, protocol, db.host, db.port, database)
 }
 
 // Load loads the database configuration from a json file

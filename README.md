@@ -68,6 +68,7 @@ import (
 
 // ...
 
+db, err := mysql.NewMySQL()
 db, err := sql.Open("mysql", "user:password@/dbname")
 if err != nil {
 	panic(err)
@@ -78,7 +79,20 @@ db.SetMaxOpenConns(10)
 db.SetMaxIdleConns(10)
 ```
 
-[Examples are available in our Wiki](https://github.com/go-sql-driver/mysql/wiki/Examples "Go-MySQL-Driver Examples").
+## Configuration
+
+The username and password are obtained from environment variables. The default environment variables are: `MYSQL_USERNAME` and `MYSQL_PASSWORD`.
+
+If you prefer to use a script to launch your code instead of setting permanent variables in the system environment, prefix the command with these variables.
+
+For example:
+```sh
+# example ... replace the xxxxx with your username and password
+
+MYSQL_USERNAME="xxxxx" MYSQL_PASSWORD="xxxxx" go run ./main.go
+```
+
+[Further examples are available in the go-sql-driver Wiki](https://github.com/go-sql-driver/mysql/wiki/Examples "Go-MySQL-Driver Examples").
 
 ### Important settings
 
