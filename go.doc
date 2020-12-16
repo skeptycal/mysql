@@ -1,6 +1,0 @@
-package mysql // import "github.com/skeptycal/util/data/mysql"
-
-var NotImplemented error = errors.New("not implemented")
-func Check() error
-func NewMySQL() (MySQL, error)
-type MySQL interface{ ... }

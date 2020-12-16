@@ -17,33 +17,37 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
 )
 
 const (
 	// mySqlUserVariable and mySqlPassword are the names of the environment variables
 	// used to store connection information.
-	mySqlUserName = "MYSQL_USERNAME"
-	mySqlPassword = "MYSQL_PASSWORD"
+	mySqlUserNameEnvVar = "MYSQL_USERNAME"
+	mySqlPasswordEnvVar = "MYSQL_PASSWORD"
 
+	defaultProtocol  = "tcp"
 	defaultMySQLHost = "localhost" // defaults for localhost are most secure
 	defaultMySQLPort = "33060"     // depending on the MySQL version; this may need to be 3306
 
 	// this is the 'driver name' used by helper functions that smooth out connections
 	mySqlDriverName = "mysql"
-
-	protocol = "tcp"
 )
+
+type mConfig struct {
+	mysql.Config
+}
 
 // NewDBConfig returns a new MySQL database connection configuration object.
 func NewMySQL() (MySQL, error) {
-	username := os.Getenv(mySqlUserName)
+	username := os.Getenv(mySqlUserNameEnvVar)
 	if username == "" {
-		return nil, fmt.Errorf("environment variable %s for MySQL username not found", mySqlUserName)
+		return nil, fmt.Errorf("environment variable %s for MySQL username not found", mySqlUserNameEnvVar)
 	}
-	password := os.Getenv(mySqlPassword)
+	password := os.Getenv(mySqlPasswordEnvVar)
 	if password == "" {
-		return nil, fmt.Errorf("environment variable %s for MySQL password not found", mySqlPassword)
+		return nil, fmt.Errorf("environment variable %s for MySQL password not found", mySqlPasswordEnvVar)
 	}
 	d := new(mySQL)
 	d.username = username
@@ -54,7 +58,6 @@ func NewMySQL() (MySQL, error) {
 
 // MySQL defines the interface to the MySQL database connection
 type MySQL interface {
-	Auth() string
 	DSN(database string) string
 	Open(dbname string) (*sql.DB, error)
 	Load(file string) error
@@ -64,14 +67,28 @@ type MySQL interface {
 type mySQL struct {
 	username string
 	password string
+	protocol string `default:"tcp"`
 	host     string `default:"localhost"` // defaults for localhost are most secure
 	port     string `default:"33060"`     // depending on the MySQL version; this may need to be 3306
 	logging  bool   `default:"false"`
 }
 
+func (db mySQL) Query(query string) (sql.Result, error) {
+	// todo - stuff
+	return nil, nil
+}
+
 // Open opens a database specified by its database driver name and a driver-specific data source name, usually consisting of at least a database name and connection information.
 //
 // Most users will open a database via a driver-specific connection helper function that returns a *DB. No database drivers are included in the Go standard library. See https://golang.org/s/sqldrivers for a list of third-party drivers.
+//
+// Important settings
+//
+// db.SetConnMaxLifetime() is required to ensure connections are closed by the driver safely before connection is closed by MySQL server, OS, or other middlewares. Since some middlewares close idle connections by 5 minutes, we recommend timeout shorter than 5 minutes. This setting helps load balancing and changing system variables too.
+//
+// db.SetMaxOpenConns() is highly recommended to limit the number of connection used by the application. There is no recommended limit number because it depends on application and MySQL server.
+//
+// db.SetMaxIdleConns() is recommended to be set same to (or greater than) db.SetMaxOpenConns(). When it is smaller than SetMaxOpenConns(), connections can be opened and closed very frequently than you expect. Idle connections can be closed by the db.SetConnMaxLifetime(). If you want to close idle connections more rapidly, you can use db.SetConnMaxIdleTime() since Go 1.15.
 //
 // Open may just validate its arguments without creating a connection to the database. To verify that the data source name is valid, call Ping.
 //
@@ -79,7 +96,11 @@ type mySQL struct {
 func (db mySQL) Open(dbname string) (*sql.DB, error) {
 
 	dbconnection, err := sql.Open(mySqlDriverName, db.DSN(dbname))
+	if err != nil {
+		return nil, err
+	}
 
+	err = dbconnection.Ping()
 	if err != nil {
 		return nil, err
 	}
@@ -95,12 +116,29 @@ func (db mySQL) Open(dbname string) (*sql.DB, error) {
 // Using "" for the database name will return a generic connection to the server
 // that allows listing and choosing different database names.
 // DSN format:
-//      [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]
+//      [username[:password]@][defaultProtocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]
 // A DSN in its fullest form:
-//      username:password@protocol(address)/dbname?param=value
+//      username:password@defaultProtocol(address)/dbname?param=value
+
+// DSN (Data Source Name)
+// The Data Source Name has a common format, like e.g. PEAR DB uses it, but without type-prefix (optional parts marked by squared brackets):
+
+// [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]
+// A DSN in its fullest form:
+//
+// username:password@protocol(address)/dbname?param=value
+// Except for the databasename, all values are optional. So the minimal DSN is:
+//
+//      /dbname
+// If you do not want to preselect a database, leave dbname empty:
+//
+//      /
+// This has the same effect as an empty DSN string:
+//
+// Alternatively, Config.FormatDSN can be used to create a DSN string by filling a struct.
 func (db mySQL) DSN(database string) string {
-	"%s:%s@%s(%s:%s)/%s"
-	return fmt.Sprintf("%s:%s@tcp(%s:%s/%s)", db.username, db.password, protocol, db.host, db.port, database)
+	// "%s:%s@%s(%s:%s)/%s"
+	return fmt.Sprintf("%s:%s@%s(%s:%s/%s)", db.username, db.password, db.protocol, db.host, db.port, database)
 }
 
 // Load loads the database configuration from a json file
@@ -108,7 +146,7 @@ func (db mySQL) DSN(database string) string {
 // Not Implemented
 func (db mySQL) Load(file string) error {
 	// load json config file
-	return NotImplemented
+	return MySqlNotImplemented
 }
 
 // Load saves the database configuration to a json file
@@ -116,11 +154,11 @@ func (db mySQL) Load(file string) error {
 // Not Implemented
 func (db mySQL) Save(file string) error {
 	// save json config file
-	return NotImplemented
+	return MySqlNotImplemented
 }
 
-// NotImplemented returns an error if the method is not yet implemented
-var NotImplemented error = errors.New("not implemented")
+// MySqlNotImplemented returns an error if the method is not yet implemented
+var MySqlNotImplemented error = errors.New("not implemented")
 
 // Package https://golang.org/pkg/database/sql/ license
 // found at https://golang.org/LICENSE
